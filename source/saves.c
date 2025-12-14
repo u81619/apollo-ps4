@@ -1875,6 +1875,38 @@ list_t * ReadOnlineList(const char* urlPath)
 	char url[256];
 	list_t *list = list_alloc();
 
+	save_entry_t *item;
+	code_entry_t *cmd;
+
+	if (apollo_config.ftp_url[0])
+	{
+		// Bulk FTP Management
+		item = _createSaveEntry(SAVE_FLAG_PS4, CHAR_ICON_COPY " ", _("Bulk Save Management"));
+		item->type = FILE_TYPE_MENU;
+		item->codes = list_alloc();
+
+		item->path = strdup(urlPath); 
+
+		// bulk management hack
+		item->dir_name = malloc(sizeof(void**));
+		((void**)item->dir_name)[0] = list;
+
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Backup selected Saves to FTP"), CMD_BACKUP_FTP_SAVES);
+		list_append(item->codes, cmd);
+
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Backup all Saves to FTP"), CMD_BACKUP_ALL_FTP_SAVES);
+		list_append(item->codes, cmd);
+
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Restore selected Saves from FTP"), CMD_RESTORE_FTP_SAVES);
+		list_append(item->codes, cmd);
+
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Restore all Saves from FTP"), CMD_RESTORE_ALL_FTP_SAVES);
+		list_append(item->codes, cmd);
+
+		list_append(list, item);
+
+	}
+
 	// PS4 save-games (Zip folder)
 	snprintf(url, sizeof(url), "%s" "PS4/", urlPath);
 	_ReadOnlineListEx(url, SAVE_FLAG_PS4, list);
