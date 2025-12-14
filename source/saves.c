@@ -1800,6 +1800,12 @@ list_t * ReadUserList(const char* userPath)
 	_createOptions(cmd, _("Copy Saves to USB"), CMD_COPY_ALL_SAVES_USB);
 	list_append(item->codes, cmd);
 
+	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Backup selected Saves to FTP"), CMD_BACKUP_FTP_SAVES);
+	list_append(item->codes, cmd);
+
+	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Backup all Saves to FTP"), CMD_BACKUP_ALL_FTP_SAVES);
+	list_append(item->codes, cmd);
+
 	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("Start local Web Server"), CMD_SAVE_WEBSERVER);
 	list_append(item->codes, cmd);
 
@@ -1890,12 +1896,6 @@ list_t * ReadOnlineList(const char* urlPath)
 		// bulk management hack
 		item->dir_name = malloc(sizeof(void**));
 		((void**)item->dir_name)[0] = list;
-
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Backup selected Saves to FTP"), CMD_BACKUP_FTP_SAVES);
-		list_append(item->codes, cmd);
-
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Backup all Saves to FTP"), CMD_BACKUP_ALL_FTP_SAVES);
-		list_append(item->codes, cmd);
 
 		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Restore selected Saves from FTP"), CMD_RESTORE_FTP_SAVES);
 		list_append(item->codes, cmd);

@@ -1718,7 +1718,6 @@ static void toggleBrowserHistory(int usr)
 	}
 }
 
-// دالة مساعدة لعمل نسخة احتياطية جماعية إلى FTP
 static void backupAllSavesFTP(const save_entry_t* save, int all)
 {
 	FILE* fp;
