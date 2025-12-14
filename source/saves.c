@@ -1800,11 +1800,16 @@ list_t * ReadUserList(const char* userPath)
 	_createOptions(cmd, _("Copy Saves to USB"), CMD_COPY_ALL_SAVES_USB);
 	list_append(item->codes, cmd);
 
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Backup selected Saves to FTP"), CMD_BACKUP_FTP_SAVES);
-	list_append(item->codes, cmd);
+	if (apollo_config.ftp_url[0])
+	{
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Upload selected Saves to FTP"), CMD_CODE_NULL);
+		_createOptions(cmd, _("Upload Saves to FTP"), CMD_BACKUP_FTP_SAVES);
+		list_append(item->codes, cmd);
 
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Backup all Saves to FTP"), CMD_BACKUP_ALL_FTP_SAVES);
-	list_append(item->codes, cmd);
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Upload all Saves to FTP"), CMD_CODE_NULL);
+		_createOptions(cmd, _("Upload Saves to FTP"), CMD_BACKUP_ALL_FTP_SAVES);
+		list_append(item->codes, cmd);
+	}
 
 	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("Start local Web Server"), CMD_SAVE_WEBSERVER);
 	list_append(item->codes, cmd);
