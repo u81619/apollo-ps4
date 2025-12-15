@@ -1323,7 +1323,7 @@ static void uploadSaveFTP(const save_entry_t* save)
 		show_message("%s\n%s", _("Error! Couldn't upload save:"), save->dir_name);
 }
 
-static void UploadAllSavesFTP(const save_entry_t* save, int all)
+static void uploadAllSavesFTP(const save_entry_t* save, int all)
 {
 	FILE* fp;
 	char *tmp;
