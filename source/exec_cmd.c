@@ -1323,6 +1323,139 @@ static void uploadSaveFTP(const save_entry_t* save)
 		show_message("%s\n%s", _("Error! Couldn't upload save:"), save->dir_name);
 }
 
+static void UploadAllSavesFTP(const save_entry_t* save, int all)
+{
+	FILE* fp;
+	char *tmp;
+	char *zip_src_path;
+	char remote[256];
+	char local[256];
+	char mount[ORBIS_SAVE_DATA_DIRNAME_DATA_MAXSIZE];
+	int done = 0, err_count = 0;
+	int is_mounted = 0;
+	list_node_t *node;
+	save_entry_t *item;
+	uint64_t progress = 0;
+	struct tm t = get_local_time();
+	list_t *list = ((void**)save->dir_name)[0];
+
+	init_progress_bar(_("Uploading saves to FTP..."));
+
+	snprintf(remote, sizeof(remote), "%s%016" PRIX64 "/PS%d/", apollo_config.ftp_url, apollo_config.account_id, SAVE_FLAG_PS4);
+	http_download(remote, "games.txt", APOLLO_LOCAL_CACHE "games.ftp", 0);
+
+	for (node = list_head(list); (item = list_get(node)); node = list_next(node))
+	{
+		update_progress_bar(progress++, list_count(list), item->name);
+		is_mounted = 0;
+
+		if (item->type != FILE_TYPE_PS4 || (item->flags & SAVE_FLAG_LOCKED) || !(all || (item->flags & SAVE_FLAG_SELECTED)))
+			continue;
+
+		if (item->flags & SAVE_FLAG_HDD)
+		{
+			if (!orbis_SaveMount(item, ORBIS_SAVE_DATA_MOUNT_MODE_RDONLY, mount))
+			{
+				LOG("Error mounting %s", item->title_id);
+				err_count++;
+				continue;
+			}
+			asprintf(&zip_src_path, APOLLO_SANDBOX_PATH, mount);
+			is_mounted = 1;
+		}
+		else
+		{
+			zip_src_path = strdup(item->path);
+		}
+
+		snprintf(remote, sizeof(remote), "%s%016" PRIX64 "/PS%d/%s/", apollo_config.ftp_url, apollo_config.account_id, item->type, item->title_id);
+		http_download(remote, "saves.txt", APOLLO_LOCAL_CACHE "saves.ftp", 0);
+		http_download(remote, "checksum.sfv", APOLLO_LOCAL_CACHE "sfv.ftp", 0);
+
+		snprintf(local, sizeof(local), APOLLO_LOCAL_CACHE "%s_%d-%02d-%02d-%02d%02d%02d.zip",
+				item->dir_name, t.tm_year+1900, t.tm_mon+1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
+
+		tmp = strdup(zip_src_path);
+		
+		size_t len = strlen(tmp);
+		if (len > 1 && tmp[len-1] == '/') tmp[len-1] = 0;
+
+		char *last_slash = strrchr(tmp, '/');
+		if (last_slash) *last_slash = 0;
+
+		int ret = zip_directory(tmp, zip_src_path, local);
+		
+		free(tmp);
+
+		if (!ret) {
+			LOG("Error zipping %s", item->dir_name);
+			err_count++;
+			if (is_mounted) {
+				orbis_SaveUmount(mount);
+				free(zip_src_path);
+			}
+			continue;
+		}
+
+		tmp = strrchr(local, '/')+1;
+		uint32_t crc = file_crc32(local);
+
+		fp = fopen(APOLLO_LOCAL_CACHE "saves.ftp", "a");
+		if (fp) {
+			fprintf(fp, "%s=[%s] %d-%02d-%02d %02d:%02d:%02d %s (CRC: %08X)\r\n", tmp, item->dir_name, 
+					t.tm_year+1900, t.tm_mon+1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec, item->name, crc);
+			fclose(fp);
+		}
+
+		fp = fopen(APOLLO_LOCAL_CACHE "sfv.ftp", "a");
+		if (fp) {
+			fprintf(fp, "%s %08X\n", tmp, crc);
+			fclose(fp);
+		}
+
+		ret = ftp_upload(local, remote, tmp, 1);
+		ret &= ftp_upload(APOLLO_LOCAL_CACHE "saves.ftp", remote, "saves.txt", 1);
+		ret &= ftp_upload(APOLLO_LOCAL_CACHE "sfv.ftp", remote, "checksum.sfv", 1);
+		
+		unlink_secure(local);
+
+		char *game_idx = readTextFile(APOLLO_LOCAL_CACHE "games.ftp");
+		if (!game_idx) game_idx = strdup("");
+		
+		if (strstr(game_idx, item->title_id) == NULL)
+		{
+			char* icon_name = get_title_name_icon(item);
+			
+			snprintf(local, sizeof(local), APOLLO_LOCAL_CACHE "%.9s.PNG", item->title_id);
+			ftp_upload(local, remote, "icon0.png", 1);
+
+			fp = fopen(APOLLO_LOCAL_CACHE "games.ftp", "a");
+			if (fp) {
+				fprintf(fp, "%s=%s\r\n", item->title_id, icon_name);
+				fclose(fp);
+			}
+			free(icon_name);
+
+			char remote_root[256];
+			snprintf(remote_root, sizeof(remote_root), "%s%016" PRIX64 "/PS%d/", apollo_config.ftp_url, apollo_config.account_id, SAVE_FLAG_PS4);
+			ftp_upload(APOLLO_LOCAL_CACHE "games.ftp", remote_root, "games.txt", 1);
+		}
+		free(game_idx);
+
+		if (is_mounted) {
+			orbis_SaveUmount(mount);
+			free(zip_src_path);
+		}
+
+		if (ret) done++; else err_count++;
+	}
+
+	clean_directory(APOLLO_LOCAL_CACHE, ".ftp");
+	end_progress_bar();
+	
+	show_message("%d/%d %s", done, done+err_count, _("Saves uploaded to FTP"));
+}
+
 static void exportVM2raw(const char* vm2_file, int dst, int ecc)
 {
 	int ret;
@@ -1718,106 +1851,6 @@ static void toggleBrowserHistory(int usr)
 	}
 }
 
-static void backupAllSavesFTP(const save_entry_t* save, int all)
-{
-	FILE* fp;
-	char *tmp;
-	char remote[256];
-	char local[256];
-	int done = 0, err_count = 0;
-	list_node_t *node;
-	save_entry_t *item;
-	uint64_t progress = 0;
-	struct tm t = get_local_time();
-	list_t *list = ((void**)save->dir_name)[0];
-
-	init_progress_bar(_("Backing up saves to FTP..."));
-
-	snprintf(remote, sizeof(remote), "%s%016" PRIX64 "/PS%d/", apollo_config.ftp_url, apollo_config.account_id, SAVE_FLAG_PS4);
-	http_download(remote, "games.txt", APOLLO_LOCAL_CACHE "games.ftp", 0);
-
-	for (node = list_head(list); (item = list_get(node)); node = list_next(node))
-	{
-		update_progress_bar(progress++, list_count(list), item->name);
-
-		if (item->type != FILE_TYPE_PS4 || (item->flags & SAVE_FLAG_LOCKED) || !(all || (item->flags & SAVE_FLAG_SELECTED)))
-			continue;
-
-
-		snprintf(remote, sizeof(remote), "%s%016" PRIX64 "/PS%d/%s/", apollo_config.ftp_url, apollo_config.account_id, item->type, item->title_id);
-		http_download(remote, "saves.txt", APOLLO_LOCAL_CACHE "saves.ftp", 0);
-		http_download(remote, "checksum.sfv", APOLLO_LOCAL_CACHE "sfv.ftp", 0);
-
-		snprintf(local, sizeof(local), APOLLO_LOCAL_CACHE "%s_%d-%02d-%02d-%02d%02d%02d.zip",
-				item->dir_name, t.tm_year+1900, t.tm_mon+1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
-
-		tmp = strdup(item->path);
-		*strrchr(tmp, '/') = 0;
-		*strrchr(tmp, '/') = 0;
-		int ret = zip_directory(tmp, item->path, local);
-		free(tmp);
-
-		if (!ret) {
-			err_count++;
-			continue;
-		}
-
-		tmp = strrchr(local, '/')+1;
-		uint32_t crc = file_crc32(local);
-
-		fp = fopen(APOLLO_LOCAL_CACHE "saves.ftp", "a");
-		if (fp) {
-			fprintf(fp, "%s=[%s] %d-%02d-%02d %02d:%02d:%02d %s (CRC: %08X)\r\n", tmp, item->dir_name, 
-					t.tm_year+1900, t.tm_mon+1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec, item->name, crc);
-			fclose(fp);
-		}
-
-		fp = fopen(APOLLO_LOCAL_CACHE "sfv.ftp", "a");
-		if (fp) {
-			fprintf(fp, "%s %08X\n", tmp, crc);
-			fclose(fp);
-		}
-
-		ret = ftp_upload(local, remote, tmp, 1);
-		ret &= ftp_upload(APOLLO_LOCAL_CACHE "saves.ftp", remote, "saves.txt", 1);
-		ret &= ftp_upload(APOLLO_LOCAL_CACHE "sfv.ftp", remote, "checksum.sfv", 1);
-		
-
-		unlink_secure(local);
-
-		char *game_idx = readTextFile(APOLLO_LOCAL_CACHE "games.ftp");
-		if (!game_idx) game_idx = strdup("");
-		
-		if (strstr(game_idx, item->title_id) == NULL)
-		{
-			char* icon_name = get_title_name_icon(item);
-			fp = fopen(APOLLO_LOCAL_CACHE "games.ftp", "a");
-			if (fp) {
-				fprintf(fp, "%s=%s\r\n", item->title_id, icon_name);
-				fclose(fp);
-			}
-			free(icon_name);
-			snprintf(remote, sizeof(remote), "%s%016" PRIX64 "/PS%d/", apollo_config.ftp_url, apollo_config.account_id, SAVE_FLAG_PS4);
-			ftp_upload(APOLLO_LOCAL_CACHE "games.ftp", remote, "games.txt", 1);
-		}
-		free(game_idx);
-
-		if (ret) done++; else err_count++;
-	}
-
-	clean_directory(APOLLO_LOCAL_CACHE, ".ftp");
-	end_progress_bar();
-	
-	show_message("%d/%d %s", done, done+err_count, _("Saves backed up to FTP"));
-}
-
-// Placeholder
-static void restoreAllSavesFTP(const save_entry_t* save, int all)
-{
-	show_message(_("Bulk Restore is not fully implemented yet."));
-}
-
-
 void execCodeCommand(code_entry_t* code, const char* codecmd)
 {
 	char *tmp = NULL;
@@ -1976,15 +2009,9 @@ void execCodeCommand(code_entry_t* code, const char* codecmd)
 			code->activated = 0;
 			break;
 		
-		case CMD_BACKUP_FTP_SAVES:
-		case CMD_BACKUP_ALL_FTP_SAVES:
-			backupAllSavesFTP(selected_entry, codecmd[0] == CMD_BACKUP_ALL_FTP_SAVES);
-			code->activated = 0;
-			break;
-
-		case CMD_RESTORE_FTP_SAVES:
-		case CMD_RESTORE_ALL_FTP_SAVES:
-			restoreAllSavesFTP(selected_entry, codecmd[0] == CMD_RESTORE_ALL_FTP_SAVES);
+		case CMD_UPLOAD_FTP_SAVES:
+		case CMD_UPLOAD_ALL_FTP_SAVES:
+			uploadAllSavesFTP(selected_entry, codecmd[0] == CMD_UPLOAD_ALL_FTP_SAVES);
 			code->activated = 0;
 			break;
 

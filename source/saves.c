@@ -1802,10 +1802,10 @@ list_t * ReadUserList(const char* userPath)
 
 	if (apollo_config.ftp_url[0])
 	{
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("Upload selected saves backup to FTP"), CMD_BACKUP_FTP_SAVES);
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("Upload selected saves backup to FTP"), CMD_UPLOAD_FTP_SAVES);
 		list_append(item->codes, cmd);
 
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("Upload all saves backup to FTP"), CMD_BACKUP_ALL_FTP_SAVES);
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("Upload all saves backup to FTP"), CMD_UPLOAD_ALL_FTP_SAVES);
 		list_append(item->codes, cmd);
 	}
 
@@ -1889,7 +1889,6 @@ list_t * ReadOnlineList(const char* urlPath)
 
 	if (apollo_config.ftp_url[0])
 	{
-		// Bulk FTP Management
 		item = _createSaveEntry(SAVE_FLAG_PS4, CHAR_ICON_COPY " ", _("Bulk Save Management"));
 		item->type = FILE_TYPE_MENU;
 		item->codes = list_alloc();
@@ -1900,10 +1899,18 @@ list_t * ReadOnlineList(const char* urlPath)
 		item->dir_name = malloc(sizeof(void**));
 		((void**)item->dir_name)[0] = list;
 
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Restore selected Saves from FTP"), CMD_RESTORE_FTP_SAVES);
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Copy selected Saves to USB"), CMD_CODE_NULL);
+		_createOptions(cmd, _("Copy Saves to USB"), CMD_COPY_SAVES_USB);
 		list_append(item->codes, cmd);
 
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Restore all Saves from FTP"), CMD_RESTORE_ALL_FTP_SAVES);
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Copy all Saves to USB"), CMD_CODE_NULL);
+		_createOptions(cmd, _("Copy Saves to USB"), CMD_COPY_ALL_SAVES_USB);
+		list_append(item->codes, cmd);
+
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Copy selected Saves to HDD"), CMD_COPY_SAVES_HDD);
+		list_append(item->codes, cmd);
+
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Copy all Saves to HDD"), CMD_COPY_ALL_SAVES_HDD);
 		list_append(item->codes, cmd);
 
 		list_append(list, item);
