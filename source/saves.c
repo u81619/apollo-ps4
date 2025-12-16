@@ -1899,18 +1899,18 @@ list_t * ReadOnlineList(const char* urlPath)
 		item->dir_name = malloc(sizeof(void**));
 		((void**)item->dir_name)[0] = list;
 
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Copy selected Saves to USB"), CMD_CODE_NULL);
-		_createOptions(cmd, _("Copy Saves to USB"), CMD_COPY_SAVES_USB);
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("Download selected Saves to USB"), CMD_CODE_NULL);
+		_createOptions(cmd, _("Download Saves to USB"), CMD_DOWNLOAD_SAVES_USB);
 		list_append(item->codes, cmd);
 
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Copy all Saves to USB"), CMD_CODE_NULL);
-		_createOptions(cmd, _("Copy Saves to USB"), CMD_COPY_ALL_SAVES_USB);
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("Download all Saves to USB"), CMD_CODE_NULL);
+		_createOptions(cmd, _("Download Saves to USB"), CMD_DOWNLOAD_ALL_SAVES_USB);
 		list_append(item->codes, cmd);
 
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Copy selected Saves to HDD"), CMD_COPY_SAVES_HDD);
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("Download selected Saves to HDD"), CMD_DOWNLOAD_SAVES_HDD);
 		list_append(item->codes, cmd);
 
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", _("Copy all Saves to HDD"), CMD_COPY_ALL_SAVES_HDD);
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("Download all Saves to HDD"), CMD_DOWNLOAD_ALL_SAVES_HDD);
 		list_append(item->codes, cmd);
 
 		list_append(list, item);

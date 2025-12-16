@@ -283,6 +283,139 @@ static void downloadSaveHDD(const save_entry_t* entry, const char* file)
 	orbis_SaveUmount(mount);
 }
 
+static void downloadAllSavesUSB(const save_entry_t* save, const char* dst_path, int all)
+{
+	int done = 0, err_count = 0;
+	list_node_t *node;
+	save_entry_t *item;
+	uint64_t progress = 0;
+	char *data, *ptr, *line;
+	char zip_file[128];
+	
+	list_t *list = ((void**)save->dir_name)[0];
+
+	if (mkdirs(dst_path) != SUCCESS)
+	{
+		show_message("%s\n%s", _("Error! Export folder is not available:"), dst_path);
+		return;
+	}
+
+	init_progress_bar(_("Downloading all saves to USB..."));
+
+	for (node = list_head(list); (item = list_get(node)); node = list_next(node))
+	{
+		update_progress_bar(progress++, list_count(list), item->name);
+
+		if (item->type == FILE_TYPE_MENU || (item->flags & SAVE_FLAG_LOCKED) || !(all || (item->flags & SAVE_FLAG_SELECTED)))
+			continue;
+
+		if (!http_download(item->path, "saves.txt", APOLLO_LOCAL_CACHE "saves.txt", 0))
+		{
+			err_count++;
+			continue;
+		}
+
+		data = readTextFile(APOLLO_LOCAL_CACHE "saves.txt");
+		if (!data)
+		{
+			err_count++;
+			unlink_secure(APOLLO_LOCAL_CACHE "saves.txt");
+			continue;
+		}
+
+		line = strtok(data, "\r\n");
+		if (line && (ptr = strchr(line, '=')))
+		{
+			*ptr = 0;
+			strncpy(zip_file, line, sizeof(zip_file));
+			
+			if (http_download(item->path, zip_file, APOLLO_LOCAL_CACHE "tmpsave.zip", 0))
+			{
+				if (extract_zip(APOLLO_LOCAL_CACHE "tmpsave.zip", dst_path))
+				{
+					done++;
+				}
+				else
+				{
+					LOG("Error extracting %s", zip_file);
+					err_count++;
+				}
+				unlink_secure(APOLLO_LOCAL_CACHE "tmpsave.zip");
+			}
+			else
+			{
+				LOG("Error downloading %s", zip_file);
+				err_count++;
+			}
+		}
+		else
+		{
+			err_count++;
+		}
+
+		free(data);
+		unlink_secure(APOLLO_LOCAL_CACHE "saves.txt");
+	}
+
+	end_progress_bar();
+	show_message("%d/%d %s\n%s", done, done+err_count, _("Saves downloaded to:"), dst_path);
+}
+
+static void downloadAllSavesHDD(const save_entry_t* save, int all)
+{
+	int done = 0, err_count = 0;
+	list_node_t *node;
+	save_entry_t *item;
+	uint64_t progress = 0;
+	char *data, *ptr, *line;
+	char zip_file[128];
+	list_t *list = ((void**)save->dir_name)[0];
+
+	init_progress_bar(_("Downloading all saves to HDD..."));
+
+	for (node = list_head(list); (item = list_get(node)); node = list_next(node))
+	{
+		update_progress_bar(progress++, list_count(list), item->name);
+
+		if (item->type != FILE_TYPE_PS4 || (item->flags & SAVE_FLAG_LOCKED) || !(all || (item->flags & SAVE_FLAG_SELECTED)))
+			continue;
+
+		if (!http_download(item->path, "saves.txt", APOLLO_LOCAL_CACHE "saves.txt", 0))
+		{
+			err_count++;
+			continue;
+		}
+
+		data = readTextFile(APOLLO_LOCAL_CACHE "saves.txt");
+		if (!data)
+		{
+			err_count++;
+			unlink_secure(APOLLO_LOCAL_CACHE "saves.txt");
+			continue;
+		}
+
+		line = strtok(data, "\r\n");
+		if (line && (ptr = strchr(line, '=')))
+		{
+			*ptr = 0;
+			strncpy(zip_file, line, sizeof(zip_file));
+			
+			downloadSaveHDD(item, zip_file);
+			done++;
+		}
+		else
+		{
+			err_count++;
+		}
+
+		free(data);
+		unlink_secure(APOLLO_LOCAL_CACHE "saves.txt");
+	}
+
+	end_progress_bar();
+	show_message("%d/%d %s", done, done+err_count, _("Saves downloaded to HDD"));
+}
+
 static int _copy_save_hdd(const save_entry_t* save)
 {
 	int ret;
@@ -2012,6 +2145,18 @@ void execCodeCommand(code_entry_t* code, const char* codecmd)
 		case CMD_UPLOAD_FTP_SAVES:
 		case CMD_UPLOAD_ALL_FTP_SAVES:
 			uploadAllSavesFTP(selected_entry, codecmd[0] == CMD_UPLOAD_ALL_FTP_SAVES);
+			code->activated = 0;
+			break;
+		
+		case CMD_DOWNLOAD_SAVES_USB:
+		case CMD_DOWNLOAD_ALL_SAVES_USB:
+			downloadAllSavesUSB(selected_entry, codecmd[1] ? SAVES_PATH_USB1 : SAVES_PATH_USB0, codecmd[0] == CMD_DOWNLOAD_ALL_SAVES_USB);
+			code->activated = 0;
+			break;
+
+		case CMD_DOWNLOAD_SAVES_HDD:
+		case CMD_DOWNLOAD_ALL_SAVES_HDD:
+			downloadAllSavesHDD(selected_entry, codecmd[0] == CMD_DOWNLOAD_ALL_SAVES_HDD);
 			code->activated = 0;
 			break;
 
