@@ -483,7 +483,7 @@ static void initLocalization(void)
 	hdd_saves.title = _("HDD Saves");
 	usb_saves.title = _("USB Saves");
 	trophies.title = _("Trophies");
-	user_backup.title = _("User Tools");
+	user_backup.title = _("ﻡﺪﺨﺘﺴﻤﻟﺍ ﺕﺍﻭﺩﺍ");
 	online_saves.title = _("Online Database");
 	vmc1_saves.title = _("PS1 Virtual Memory Card");
 	vmc2_saves.title = _("PS2 Virtual Memory Card");
