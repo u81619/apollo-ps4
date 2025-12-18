@@ -300,13 +300,13 @@ static void downloadAllSavesUSB(const save_entry_t* save, const char* dst_path, 
 		return;
 	}
 
-	init_progress_bar(_("Downloading all saves to USB..."));
+	init_progress_bar(all ? _("Downloading all saves to USB...") : _("Downloading selected saves to USB..."));
 
 	for (node = list_head(list); (item = list_get(node)); node = list_next(node))
 	{
 		update_progress_bar(progress++, list_count(list), item->name);
 
-		if (item->type == FILE_TYPE_MENU || (item->flags & SAVE_FLAG_LOCKED) || !(all || (item->flags & SAVE_FLAG_SELECTED)))
+		if (item->type == FILE_TYPE_MENU || (item->flags & SAVE_FLAG_LOCKED) || (!all && !(item->flags & SAVE_FLAG_SELECTED)))
 			continue;
 
 		if (!http_download(item->path, "saves.txt", APOLLO_LOCAL_CACHE "saves.txt", 0))
@@ -371,13 +371,13 @@ static void downloadAllSavesHDD(const save_entry_t* save, int all)
 	char zip_file[128];
 	list_t *list = ((void**)save->dir_name)[0];
 
-	init_progress_bar(_("Downloading all saves to HDD..."));
+	init_progress_bar(all ? _("Downloading all saves to HDD...") : _("Downloading selected saves to HDD..."));
 
 	for (node = list_head(list); (item = list_get(node)); node = list_next(node))
 	{
 		update_progress_bar(progress++, list_count(list), item->name);
 
-		if (item->type != FILE_TYPE_PS4 || (item->flags & SAVE_FLAG_LOCKED) || !(all || (item->flags & SAVE_FLAG_SELECTED)))
+		if (item->type != FILE_TYPE_PS4 || (item->flags & SAVE_FLAG_LOCKED) || (!all && !(item->flags & SAVE_FLAG_SELECTED)))
 			continue;
 
 		if (!http_download(item->path, "saves.txt", APOLLO_LOCAL_CACHE "saves.txt", 0))

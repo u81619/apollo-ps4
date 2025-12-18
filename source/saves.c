@@ -1886,6 +1886,7 @@ list_t * ReadOnlineList(const char* urlPath)
 
 	save_entry_t *item;
 	code_entry_t *cmd;
+	option_value_t* optval;
 
 	if (apollo_config.ftp_url[0])
 	{
@@ -1899,22 +1900,27 @@ list_t * ReadOnlineList(const char* urlPath)
 		item->dir_name = malloc(sizeof(void**));
 		((void**)item->dir_name)[0] = list;
 
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("Download selected Saves to USB"), CMD_CODE_NULL);
-		_createOptions(cmd, _("Download Saves to USB"), CMD_DOWNLOAD_SAVES_USB);
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("Download selected Saves"), CMD_CODE_NULL);
+		_createOptions(cmd, _("Download to USB"), CMD_DOWNLOAD_SAVES_USB);
+
+		optval = malloc(sizeof(option_value_t));
+		asprintf(&optval->name, "%s", _("Download to HDD"));
+		asprintf(&optval->value, "%c%c", CMD_DOWNLOAD_SAVES_HDD, STORAGE_HDD);
+		list_append(cmd->options[0].opts, optval);
+		
 		list_append(item->codes, cmd);
 
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("Download all Saves to USB"), CMD_CODE_NULL);
-		_createOptions(cmd, _("Download Saves to USB"), CMD_DOWNLOAD_ALL_SAVES_USB);
-		list_append(item->codes, cmd);
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("Download all Saves"), CMD_CODE_NULL);
+		_createOptions(cmd, _("Download to USB"), CMD_DOWNLOAD_ALL_SAVES_USB);
 
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("Download selected Saves to HDD"), CMD_DOWNLOAD_SAVES_HDD);
-		list_append(item->codes, cmd);
+		optval = malloc(sizeof(option_value_t));
+		asprintf(&optval->name, "%s", _("Download to HDD"));
+		asprintf(&optval->value, "%c%c", CMD_DOWNLOAD_ALL_SAVES_HDD, STORAGE_HDD);
+		list_append(cmd->options[0].opts, optval);
 
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("Download all Saves to HDD"), CMD_DOWNLOAD_ALL_SAVES_HDD);
 		list_append(item->codes, cmd);
 
 		list_append(list, item);
-
 	}
 
 	// PS4 save-games (Zip folder)
